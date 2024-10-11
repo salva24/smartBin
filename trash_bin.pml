@@ -235,7 +235,11 @@ proctype truck() {
 	byte bin_id;
 	do
 	:: request_truck?bin_id ->
-		skip;
+		change_truck!arrived, bin_id;
+		change_truck? start_emptying, bin_id;
+		empty_bin!true;
+		bin_emptied?true;
+		change_truck!emptied, bin_id;
 	od
 }
 

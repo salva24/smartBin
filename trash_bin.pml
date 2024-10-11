@@ -283,13 +283,40 @@ proctype user(byte user_id; byte trash_size) {
 proctype main_control() {
 	byte user_id;
 	bool valid;
+	byte trash_weight;
 	do
 	:: scan_card_user?user_id -> 
 		check_user!user_id;                
 		user_valid?user_id, valid ->        //Wait for server answer
             if
-            :: valid && !bin_status.full_capacity->  can_deposit_trash!user_id, true                 
-                
+            :: valid && !bin_status.full_capacity->  
+				can_deposit_trash!user_id, true;
+				user_closed_outer_door?true; //wait for door to be closed 
+				change_bin!LockOuterDoor, closed; //Lock Outer Door
+				//weighting the trash
+				weigh_trash!true;  
+				trash_weighted?trash_weight;
+				//open trap door (we assume the trap door is closed)
+				assert(bin_status.trap_door==closed);
+				change_bin!TrapDoor, open;
+				bin_changed?TrapDoor, true;
+				//compress trash
+				change_ram!compress;
+				ram_changed?true;
+				change_ram!idle
+				ram_changed?true;
+				//close trap door
+				assert(bin_status.trap_door==open);
+				change_bin!TrapDoor, closed;
+				bin_changed?TrapDoor, true;
+				//update if capacity if full
+				if
+					:: (bin_status.trash_uncompressed+bin_status.trash_compressed)>=max_capacity->
+						bin_status.full_capacity=true;
+					:: else -> 
+						skip;
+				fi	
+				               
             :: else -> can_deposit_trash!user_id, false;               
                 
             fi

@@ -282,9 +282,17 @@ proctype user(byte user_id; byte trash_size) {
 // Remodel it to control the trash bin system and handle requests by users!
 proctype main_control() {
 	byte user_id;
+	bool valid;
 	do
-	:: scan_card_user?user_id ->
-		skip;
+	:: scan_card_user?user_id -> 
+		check_user!user_id;                
+		user_valid?user_id, valid ->        //Wait for server answer
+            if
+            :: valid && !bin_status.full_capacity->  can_deposit_trash!user_id, true                 
+                
+            :: else -> can_deposit_trash!user_id, false;               
+                
+            fi
 	od
 }
 

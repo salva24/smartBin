@@ -285,11 +285,10 @@ proctype user(byte user_id; byte trash_size) {
 // DUMMY main control process type.
 // Remodel it to control the trash bin system and handle requests by users!
 proctype main_control() {
-	byte bin_id;
-	bin_id=12;
 	byte user_id;
 	bool valid;
 	byte trash_weight;
+	byte bin_id = 0;//for now there is anly one bin
 	do
 	:: bin_status.full_capacity->//we need to empty the trash
 		request_truck!bin_id;

@@ -26,23 +26,23 @@
 
 // ram1 The vertical ram is only used when the outer door is closed and locked. (Safety)
 // G ((ram = compress) -> (out_door = closed && lock_out_door = closed))
-ltl ram1 { [](ram == compress -> (out_door == closed && lock_out_door == closed)) }
+ltl ram1 { [](bin_status.ram == compress -> (bin_status.out_door == closed && bin_status.lock_out_door == closed)) }
 
 // The vertical ram is not used when the interior of the trash bin is empty. (Safety)
 // G ((ram = compress) -> (trash_uncompressed > 0 || trash_compressed > 0))
-ltl ram2 { [](ram == compress -> (trash_uncompressed > 0 || trash_compressed > 0)) }
+ltl ram2 { [](bin_status.ram == compress -> (bin_status.trash_uncompressed > 0 || bin_status.trash_compressed > 0)) }
 
 // The outer door can only be opened if no trash is in it. (Safety)
 // G ((out_door = open) -> (trash_in_outer_door = 0))
-ltl door1 { [](out_door == open -> trash_in_outer_door == 0) }
+ltl door1 { [](bin_status.out_door == open -> bin_status.trash_in_outer_door == 0) }
 
-// The outer door can only be locked if the trap door is closed and no trash is on the trap door.
+// The outer door can only be locked if the trap door is closed and no trash is on the trap door. (Safety)
 // G ((lock_out_door = closed) -> (trap_door = closed && trash_on_trap_door = 0))
-ltl door2 { [](lock_out_door == closed -> (trap_door == closed && trash_on_trap_door == 0)) }
+ltl door2 { [](bin_status.lock_out_door == closed -> (bin_status.trap_door == closed && bin_status.trash_on_trap_door == 0)) }
 
 // Every time the trash bin is full, it is eventually not full anymore. (Liveness)
 // G (full_capacity -> F (!full_capacity))
-ltl capacity1 { [](full_capacity -> <>(!full_capacity)) }
+ltl capacity1 { [](bin_status.full_capacity -> <>(!bin_status.full_capacity)) }
 
 // The user always eventually has no trash. (Liveness)
 // G (has_trash -> F (!has_trash))

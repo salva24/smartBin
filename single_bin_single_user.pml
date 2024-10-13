@@ -20,9 +20,7 @@
 #define NO_USERS 1
 
 
-// FORMULAS
-// Insert the LTL formulas here
-//ltl door1 { ... }
+// FORMULAS LTL
 
 // ram1 The vertical ram is only used when the outer door is closed and locked. (Safety)
 // G ((ram = compress) -> (out_door = closed && lock_out_door = closed))
@@ -50,11 +48,11 @@ ltl user1 { [](has_trash -> <>(!has_trash)) }
 
 // Every time the user has trash they can deposit their trash. (Liveness)
 // G (has_trash -> F (can_deposit_trash))
-ltl user2 { [](has_trash -> <>can_deposit_trash) }
+ltl user2 { [](has_trash -> <>can_deposit_trash?user_id,true) }//user_id is irrelevant
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
-ltl truck1 { [](request_truck -> <>bin_emptied) }
+ltl truck1 { [](request_truck?bin_id -> <>bin_emptied) }//remember there is only one bin
 
 
 // DATATYPES

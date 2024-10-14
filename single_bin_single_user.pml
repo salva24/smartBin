@@ -322,6 +322,8 @@ proctype main_control() {
 	do
 	:: bin_status.full_capacity->//we need to empty the trash
 		request_truck!bin_id;
+		change_truck?arrived, bin_id;
+		change_truck!start_emptying, bin_id;
 	:: scan_card_user?user_id -> 
 		check_user!user_id;                
 		user_valid?user_id, valid ->        //Wait for server answer

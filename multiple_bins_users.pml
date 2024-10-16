@@ -18,6 +18,10 @@
 #define NO_BINS 1
 // The number of users.
 #define NO_USERS 1
+#define USER_ID 0
+#define BIN_ID 0
+
+
 
 
 // FORMULAS
@@ -50,18 +54,18 @@ ltl capacity1 { [](bin_status[bin_id].full_capacity -> <>(!bin_status[bin_id].fu
 // The user always eventually has no trash. (Liveness)
 // G (has_trash -> F (!has_trash))
 //for all user_id
-ltl user1 { [](has_trash[user_id] -> <>(!has_trash[user_id])) }
+ltl user1 { [](<>(!has_trash[user_id])) }
 
 // Every time the user has trash they can deposit their trash. (Liveness)
 // G (has_trash -> F (can_deposit_trash))
 //for all user_id
-ltl user2 { [](has_trash[user_id] -> <>can_deposit_trash?user_id, bin_id, true) }//it does not matter which is the value of bin_id
+ltl user2 { [](has_trash[user_id] -> <>(!has_trash[user_id])) }//it does not matter which is the value of bin_id
 // ltl user2 { []((?bin_id && has_trash[user_id]) -> <>can_deposit_trash?user_id, bin_id, true) }//it does not matter which is the value of bin_id
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
 //for all bin_id
-ltl truck1 { [](request_truck?bin_id -> <>bin_emptied[bin_id]) }
+ltl truck1 { [](request_truck?[BIN_ID] -> <>bin_emptied[BIN_ID]) }
 
 
 
@@ -332,18 +336,6 @@ proctype main_control() {
     byte bin_id;
     
     do
-    :: bin_id = 0;
-       do
-       :: bin_id < NO_BINS ->    // Iterate over all bins
-           if
-           :: bin_status[bin_id].full_capacity -> // We need to empty the bin
-               request_truck!bin_id;
-           :: else -> skip;  // Continue if not full
-           fi;
-           bin_id++;          // Move to the next bin
-       :: bin_id == NO_BINS -> break; // When all bins have been processed
-       od;
-    
     :: scan_card_user?user_id -> 
         check_user!user_id;                
         user_valid?user_id, valid ->        // Wait for server response
@@ -401,7 +393,19 @@ proctype main_control() {
                 
             :: else -> can_deposit_trash!user_id,NO_BINS, false; // Invalid user there is no bin id
             fi;
-            
+    ::else->
+	    :: bin_id = 0;
+       do
+       :: bin_id < NO_BINS ->    // Iterate over all bins
+           if
+           :: bin_status[bin_id].full_capacity -> // We need to empty the bin
+               request_truck!bin_id;
+           :: else -> skip;  // Continue if not full
+           fi;
+           bin_id++;          // Move to the next bin
+       :: bin_id == NO_BINS -> break; // When all bins have been processed
+       od;
+    
     od;
 }
 

@@ -52,7 +52,7 @@ ltl user2 { [](has_trash -> <>can_deposit_trash?user_id,true) }//user_id is irre
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
-ltl truck1 { [](request_truck?bin_id -> <>bin_emptied) }//remember there is only one bin
+ltl truck1 { [](request_truck?[0] -> <>bin_emptied) }//remember there is only one bin
 
 
 // DATATYPES
@@ -324,41 +324,44 @@ proctype main_control() {
 		request_truck!bin_id;
 		change_truck?arrived, bin_id;
 		change_truck!start_emptying, bin_id;
-	:: scan_card_user?user_id -> 
+		change_truck?emptied, bin_id;
+	:: !bin_status.full_capacity->
+		scan_card_user?user_id;
 		check_user!user_id;                
 		user_valid?user_id, valid ->        //Wait for server answer
-            if
-            :: valid && !bin_status.full_capacity->  
-				can_deposit_trash!user_id, true;
-				user_closed_outer_door?true; //wait for door to be closed 
-				change_bin!LockOuterDoor, closed; //Lock Outer Door
-				//weighting the trash
-				weigh_trash!true;  
-				trash_weighted?trash_weight;
-				//open trap door (we assume the trap door is closed)
-				assert(bin_status.trap_door==closed);
-				change_bin!TrapDoor, open;
-				bin_changed?TrapDoor, true;
-				//compress trash
-				change_ram!compress;
-				ram_changed?true;
-				change_ram!idle
-				ram_changed?true;
-				//close trap door
-				assert(bin_status.trap_door==open);
-				change_bin!TrapDoor, closed;
-				bin_changed?TrapDoor, true;
-				//update if capacity if full
-				if
-					:: (bin_status.trash_uncompressed+bin_status.trash_compressed)>=max_capacity->
-						bin_status.full_capacity=true;
-					:: else -> 
-						skip;
-				fi	
-				               
-            :: else -> can_deposit_trash!user_id, false;               
-                
-            fi
+		if
+		:: valid ->  
+			assert(!bin_status.full_capacity);
+			can_deposit_trash!user_id, true;
+			user_closed_outer_door?true; //wait for door to be closed 
+			change_bin!LockOuterDoor, closed; //Lock Outer Door
+			//weighting the trash
+			weigh_trash!true;  
+			trash_weighted?trash_weight;
+			//open trap door (we assume the trap door is closed)
+			assert(bin_status.trap_door==closed);
+			change_bin!TrapDoor, open;
+			bin_changed?TrapDoor, true;
+			//compress trash
+			change_ram!compress;
+			ram_changed?true;
+			change_ram!idle
+			ram_changed?true;
+			//close trap door
+			assert(bin_status.trap_door==open);
+			change_bin!TrapDoor, closed;
+			bin_changed?TrapDoor, true;
+			//update if capacity if full
+			if
+				:: (bin_status.trash_uncompressed+bin_status.trash_compressed)>=max_capacity->
+					bin_status.full_capacity=true;
+				:: else -> 
+					skip;
+			fi	
+						
+		:: else -> can_deposit_trash!user_id, false;               
+			
+		fi
 	od
 }
 

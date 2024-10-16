@@ -336,7 +336,19 @@ proctype main_control() {
     byte bin_id;
     
     do
-    :: scan_card_user?user_id -> 
+    :: bin_id = 0;//first we are gonna empty all the bins
+       do
+       :: bin_id < NO_BINS ->    // Iterate over all bins
+           if
+           :: bin_status[bin_id].full_capacity -> // We need to empty the bin
+               request_truck!bin_id;
+           :: else -> skip;  // Continue if not full
+           fi;
+           bin_id++;          // Move to the next bin
+       :: bin_id == NO_BINS -> break; // When all bins have been processed
+       od;
+    
+    	scan_card_user?user_id; 
         check_user!user_id;                
         user_valid?user_id, valid ->        // Wait for server response
             if
@@ -393,19 +405,7 @@ proctype main_control() {
                 
             :: else -> can_deposit_trash!user_id,NO_BINS, false; // Invalid user there is no bin id
             fi;
-    ::else->
-	    :: bin_id = 0;
-       do
-       :: bin_id < NO_BINS ->    // Iterate over all bins
-           if
-           :: bin_status[bin_id].full_capacity -> // We need to empty the bin
-               request_truck!bin_id;
-           :: else -> skip;  // Continue if not full
-           fi;
-           bin_id++;          // Move to the next bin
-       :: bin_id == NO_BINS -> break; // When all bins have been processed
-       od;
-    
+            
     od;
 }
 

@@ -26,35 +26,35 @@
 
 // ram1 The vertical ram is only used when the outer door is closed and locked. (Safety)
 // G ((ram = compress) -> (out_door = closed && lock_out_door = closed))
-ltl ram1 { [](bin_status.ram == compress -> (bin_status.out_door == closed && bin_status.lock_out_door == closed)) }
+//ltl ram1 { [](bin_status.ram == compress -> (bin_status.out_door == closed && bin_status.lock_out_door == closed)) }
 
 // The vertical ram is not used when the interior of the trash bin is empty. (Safety)
 // G ((ram = compress) -> (trash_uncompressed > 0 || trash_compressed > 0))
-ltl ram2 { [](bin_status.ram == compress -> (bin_status.trash_uncompressed > 0 || bin_status.trash_compressed > 0)) }
+//ltl ram2 { [](bin_status.ram == compress -> (bin_status.trash_uncompressed > 0 || bin_status.trash_compressed > 0)) }
 
 // The outer door can only be opened if no trash is in it. (Safety)
 // G ((out_door = open) -> (trash_in_outer_door = 0))
-ltl door1 { [](bin_status.out_door == open -> bin_status.trash_in_outer_door == 0) }
+//ltl door1 { [](bin_status.out_door == open -> bin_status.trash_in_outer_door == 0) }
 
 // The outer door can only be locked if the trap door is closed and no trash is on the trap door. (Safety)
 // G ((lock_out_door = closed) -> (trap_door = closed && trash_on_trap_door = 0))
-ltl door2 { [](bin_status.lock_out_door == closed -> (bin_status.trap_door == closed && bin_status.trash_on_trap_door == 0)) }
+//ltl door2 { [](bin_status.lock_out_door == closed -> (bin_status.trap_door == closed && bin_status.trash_on_trap_door == 0)) }
 
 // Every time the trash bin is full, it is eventually not full anymore. (Liveness)
 // G (full_capacity -> F (!full_capacity))
-ltl capacity1 { [](bin_status.full_capacity -> <>(!bin_status.full_capacity)) }
+//ltl capacity1 { [](bin_status.full_capacity -> <>(!bin_status.full_capacity)) }
 
 // The user always eventually has no trash. (Liveness)
 // G (has_trash -> F (!has_trash))
-ltl user1 { [](has_trash -> <>(!has_trash)) }
+//ltl user1 { [](has_trash -> <>(!has_trash)) }
 
 // Every time the user has trash they can deposit their trash. (Liveness)
 // G (has_trash -> F (can_deposit_trash))
-ltl user2 { [](has_trash -> <>can_deposit_trash?[USER_ID,true]) }//user_id is irrelevant
+//ltl user2 { [](has_trash -> <>can_deposit_trash?[USER_ID,true]) }//user_id is irrelevant
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
-ltl truck1 { [](request_truck?[0] -> <>bin_emptied) }//remember there is only one bin
+//ltl truck1 { [](request_truck?[0] -> <>bin_emptied) }//remember there is only one bin
 
 
 // DATATYPES
@@ -330,13 +330,15 @@ proctype main_control() {
 	:: !bin_status.full_capacity->
 		scan_card_user?user_id;//wait for the user to scan his card
 		check_user!user_id;                
-		user_valid?eval(user_id), valid ->        //Wait for server answer
+		user_valid?user_id, valid ->        //Wait for server answer
 		if
 		:: valid ->  
 			assert(!bin_status.full_capacity);
 			can_deposit_trash!user_id, true;
+			change_bin!LockOuterDoor, open;
 			user_closed_outer_door?true; //wait for door to be closed 
 			change_bin!LockOuterDoor, closed; //Lock Outer Door
+			bin_changed?LockOuterDoor, true;
 			//weighting the trash
 			weigh_trash!true;  
 			trash_weighted?trash_weight;

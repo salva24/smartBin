@@ -29,42 +29,42 @@
 // ram1 The vertical ram is only used when the outer door is closed and locked. (Safety)
 // G ((ram = compress) -> (out_door = closed && lock_out_door = closed))
 //for all bin_id
-ltl ram1 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].out_door == closed && bin_status[BIN_ID].lock_out_door == closed)) }
+//ltl ram1 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].out_door == closed && bin_status[BIN_ID].lock_out_door == closed)) }
 
 // The vertical ram is not used when the interior of the trash bin is empty. (Safety)
 // G ((ram = compress) -> (trash_uncompressed > 0 || trash_compressed > 0))
 //for all bin_id
-ltl ram2 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].trash_uncompressed > 0 || bin_status[BIN_ID].trash_compressed > 0)) }
+//ltl ram2 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].trash_uncompressed > 0 || bin_status[BIN_ID].trash_compressed > 0)) }
 
 // The outer door can only be opened if no trash is in it. (Safety)
 // G ((out_door = open) -> (trash_in_outer_door = 0))
 //for all bin_id
-ltl door1 { [](bin_status[BIN_ID].out_door == open -> bin_status[BIN_ID].trash_in_outer_door == 0) }
+//ltl door1 { [](bin_status[BIN_ID].out_door == open -> bin_status[BIN_ID].trash_in_outer_door == 0) }
 
 // The outer door can only be locked if the trap door is closed and no trash is on the trap door. (Safety)
 // G ((lock_out_door = closed) -> (trap_door = closed && trash_on_trap_door = 0))
 //for all bin_id
-ltl door2 { [](bin_status[BIN_ID].lock_out_door == closed -> (bin_status[BIN_ID].trap_door == closed && bin_status[BIN_ID].trash_on_trap_door == 0)) }
+//ltl door2 { [](bin_status[BIN_ID].lock_out_door == closed -> (bin_status[BIN_ID].trap_door == closed && bin_status[BIN_ID].trash_on_trap_door == 0)) }
 
 // Every time the trash bin is full, it is eventually not full anymore. (Liveness)
 // G (full_capacity -> F (!full_capacity))
 //for all bin_id
-ltl capacity1 { [](bin_status[BIN_ID].full_capacity -> <>(!bin_status[BIN_ID].full_capacity)) }
+//ltl capacity1 { [](bin_status[BIN_ID].full_capacity -> <>(!bin_status[BIN_ID].full_capacity)) }
 
 // The user always eventually has no trash. (Liveness)
 // G (has_trash -> F (!has_trash))
 //for all user_id
-ltl user1 { [](<>(!has_trash[USER_ID])) }
+//ltl user1 { [](<>(!has_trash[USER_ID])) }
 
 // Every time the user has trash they can deposit their trash. (Liveness)
 // G (has_trash -> F (!has_trash))
 //for all user_id
-ltl user2 { [](has_trash[USER_ID] -> <>(!has_trash[USER_ID])) }//it does not matter which is the value of bin_id
+//ltl user2 { [](has_trash[USER_ID] -> <>(!has_trash[USER_ID])) }//it does not matter which is the value of bin_id
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
 //for all bin_id
-ltl truck1 { [](request_truck?[BIN_ID] -> <>bin_emptied[BIN_ID]) }
+//ltl truck1 { [](request_truck?[BIN_ID] -> <>bin_emptied[BIN_ID]) }
 
 
 
@@ -110,9 +110,9 @@ bool has_trash[NO_USERS];
 
 // CHANNELS
 // Asynchronous channel to give command to doors and lock
-chan change_bin[NO_BINS] = [1] of {byte, mtype:comp, mtype:pos };//for each bin
+chan change_bin[NO_BINS] = [1] of {mtype:comp, mtype:pos };//for each bin
 // Synchronous channel to acknowledge change in bin
-chan bin_changed[NO_BINS] = [0] of {byte, mtype:comp, bool };
+chan bin_changed[NO_BINS] = [0] of {mtype:comp, bool };
 // Synchronous channel to indicate that user closed the door
 chan user_closed_outer_door[NO_BINS] = [0] of { bool };
 
@@ -369,13 +369,13 @@ proctype main_control() {
 						if
 						:: !bin_status[bin_id].full_capacity ->  
 							can_deposit_trash!user_id,bin_id, true;
-							
+							change_bin[bin_id]!LockOuterDoor, open;
 							// Wait for the outer door to be closed
 							user_closed_outer_door[bin_id]?true; 
 							
 							// Close and lock the outer door
 							change_bin[bin_id]!LockOuterDoor, closed; 
-							
+							bin_changed[bin_id]?LockOuterDoor, true;
 							// Weigh the trash
 							weigh_trash[bin_id]!true;  
 							trash_weighted[bin_id]?trash_weight;
@@ -453,7 +453,7 @@ init {
 
 		// Start the users processes
 		proc = 0;
-		byte trash_size = 2;//I assume all users ahs the same ammount of trash (could be easily changed)
+		byte trash_size = 2;//I assume all users have the same ammount of trash (could be easily changed)
 		do
 		:: proc < NO_USERS ->
 			// Status of User

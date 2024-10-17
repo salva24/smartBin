@@ -15,11 +15,24 @@
 
 // CONSTANTS
 // The number of trash bins.
-#define NO_BINS 2
+#define NO_BINS 1
 // The number of users.
 #define NO_USERS 2
 
-//FOR TESTING LTL formulas
+
+//users_trash_sizes
+#define TRASH_SIZE_USER0 4
+#define TRASH_SIZE_USER1 6
+//#define TRASH_SIZE_USER2 4
+//...
+//trash_bin_max_capacity
+#define BIN_MAX_CAPACITY0 7
+// #define BIN_MAX_CAPACITY1 7
+// #define BIN_MAX_CAPACITY2 7
+
+
+
+//for testing LTL
 #define USER_ID 0
 #define BIN_ID 0
 
@@ -446,25 +459,36 @@ init {
 			bin_status[proc].trash_uncompressed = 0;
 			bin_status[proc].full_capacity = false;
 			bin_status[proc].trap_destroyed = false;
-			max_capacity[proc] = 2;
+			//max_capacity[proc] = 2;
 			run bin(proc);
 			proc++;
 		:: proc == NO_BINS ->
 			break;
 		od;
 
+
+		//max capacity of bins
+		max_capacity[0]= BIN_MAX_CAPACITY0;
+
+
 		// Start the users processes
 		proc = 0;
-		byte trash_size = 2;//I assume all users have the same ammount of trash (could be easily changed)
+		//users trash sizes
+		byte trash_size[NO_USERS];
+		trash_size[0]=TRASH_SIZE_USER0;
+		trash_size[1]=TRASH_SIZE_USER1;
+
 		do
 		:: proc < NO_USERS ->
 			// Status of User
 			has_trash[proc] = true;
-			run user(proc, trash_size);
+			run user(proc, trash_size[proc]);
 			proc++;
 		:: proc == NO_USERS ->
 			break;
 		od;
+
+
 
 		// Start the server process
 		run server();

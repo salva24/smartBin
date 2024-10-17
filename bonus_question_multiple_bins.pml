@@ -81,6 +81,8 @@
 //for all bin_id
 //ltl truck1 { [](request_truck?[BIN_ID] -> <>bin_emptied[BIN_ID]) }
 
+//bonus question
+ltl bonus1 { [[](!bin_status[0].full_capacity)]} //when the bin gets full we will get a counter example  
 
 
 // DATATYPES

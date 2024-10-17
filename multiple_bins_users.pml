@@ -15,9 +15,9 @@
 
 // CONSTANTS
 // The number of trash bins.
-#define NO_BINS 1
+#define NO_BINS 3
 // The number of users.
-#define NO_USERS 1
+#define NO_USERS 2
 #define USER_ID 0
 #define BIN_ID 0
 
@@ -29,42 +29,42 @@
 // ram1 The vertical ram is only used when the outer door is closed and locked. (Safety)
 // G ((ram = compress) -> (out_door = closed && lock_out_door = closed))
 //for all bin_id
-//ltl ram1 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].out_door == closed && bin_status[BIN_ID].lock_out_door == closed)) }
+ltl ram1 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].out_door == closed && bin_status[BIN_ID].lock_out_door == closed)) }
 
 // The vertical ram is not used when the interior of the trash bin is empty. (Safety)
 // G ((ram = compress) -> (trash_uncompressed > 0 || trash_compressed > 0))
 //for all bin_id
-//ltl ram2 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].trash_uncompressed > 0 || bin_status[BIN_ID].trash_compressed > 0)) }
+ltl ram2 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].trash_uncompressed > 0 || bin_status[BIN_ID].trash_compressed > 0)) }
 
 // The outer door can only be opened if no trash is in it. (Safety)
 // G ((out_door = open) -> (trash_in_outer_door = 0))
 //for all bin_id
-//ltl door1 { [](bin_status[BIN_ID].out_door == open -> bin_status[BIN_ID].trash_in_outer_door == 0) }
+ltl door1 { [](change_bin[BIN_ID]?[OuterDoor, open] -> bin_status[BIN_ID].trash_in_outer_door == 0) }
 
 // The outer door can only be locked if the trap door is closed and no trash is on the trap door. (Safety)
 // G ((lock_out_door = closed) -> (trap_door = closed && trash_on_trap_door = 0))
 //for all bin_id
-//ltl door2 { [](bin_status[BIN_ID].lock_out_door == closed -> (bin_status[BIN_ID].trap_door == closed && bin_status[BIN_ID].trash_on_trap_door == 0)) }
+ltl door2 { [](change_bin[BIN_ID]?[LockOuterDoor, closed] -> (bin_status[BIN_ID].trap_door == closed && bin_status[BIN_ID].trash_on_trap_door == 0)) }
 
 // Every time the trash bin is full, it is eventually not full anymore. (Liveness)
 // G (full_capacity -> F (!full_capacity))
 //for all bin_id
-//ltl capacity1 { [](bin_status[BIN_ID].full_capacity -> <>(!bin_status[BIN_ID].full_capacity)) }
+ltl capacity1 { [](bin_status[BIN_ID].full_capacity -> <>(!bin_status[BIN_ID].full_capacity)) }
 
 // The user always eventually has no trash. (Liveness)
 // G (has_trash -> F (!has_trash))
 //for all user_id
-//ltl user1 { [](<>(!has_trash[USER_ID])) }
+ltl user1 { [](<>(!has_trash[USER_ID])) }
 
 // Every time the user has trash they can deposit their trash. (Liveness)
 // G (has_trash -> F (!has_trash))
 //for all user_id
-//ltl user2 { [](has_trash[USER_ID] -> <>(!has_trash[USER_ID])) }//it does not matter which is the value of bin_id
+ltl user2 { [](has_trash[USER_ID] -> <>(!has_trash[USER_ID])) }//it does not matter which is the value of bin_id
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
 //for all bin_id
-//ltl truck1 { [](request_truck?[BIN_ID] -> <>bin_emptied[BIN_ID]) }
+ltl truck1 { [](request_truck?[BIN_ID] -> <>bin_emptied[BIN_ID]) }
 
 
 
@@ -346,6 +346,7 @@ proctype main_control() {
 				change_truck?arrived, eval(bin_id);
 				change_truck!start_emptying, bin_id;
 				change_truck?emptied, eval(bin_id);
+				bin_status[bin_id].full_capacity = false;
 			:: else -> skip;  // Continue if not full
 			fi;
 			bin_id++;          // Move to the next bin

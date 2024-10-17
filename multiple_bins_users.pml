@@ -29,38 +29,37 @@
 // ram1 The vertical ram is only used when the outer door is closed and locked. (Safety)
 // G ((ram = compress) -> (out_door = closed && lock_out_door = closed))
 //for all bin_id
-ltl ram1 { [](bin_status[bin_id].ram == compress -> (bin_status[bin_id].out_door == closed && bin_status[bin_id].lock_out_door == closed)) }
+ltl ram1 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].out_door == closed && bin_status[BIN_ID].lock_out_door == closed)) }
 
 // The vertical ram is not used when the interior of the trash bin is empty. (Safety)
 // G ((ram = compress) -> (trash_uncompressed > 0 || trash_compressed > 0))
 //for all bin_id
-ltl ram2 { [](bin_status[bin_id].ram == compress -> (bin_status[bin_id].trash_uncompressed > 0 || bin_status[bin_id].trash_compressed > 0)) }
+ltl ram2 { [](bin_status[BIN_ID].ram == compress -> (bin_status[BIN_ID].trash_uncompressed > 0 || bin_status[BIN_ID].trash_compressed > 0)) }
 
 // The outer door can only be opened if no trash is in it. (Safety)
 // G ((out_door = open) -> (trash_in_outer_door = 0))
 //for all bin_id
-ltl door1 { [](bin_status[bin_id].out_door == open -> bin_status[bin_id].trash_in_outer_door == 0) }
+ltl door1 { [](bin_status[BIN_ID].out_door == open -> bin_status[BIN_ID].trash_in_outer_door == 0) }
 
 // The outer door can only be locked if the trap door is closed and no trash is on the trap door. (Safety)
 // G ((lock_out_door = closed) -> (trap_door = closed && trash_on_trap_door = 0))
 //for all bin_id
-ltl door2 { [](bin_status[bin_id].lock_out_door == closed -> (bin_status[bin_id].trap_door == closed && bin_status[bin_id].trash_on_trap_door == 0)) }
+ltl door2 { [](bin_status[BIN_ID].lock_out_door == closed -> (bin_status[BIN_ID].trap_door == closed && bin_status[BIN_ID].trash_on_trap_door == 0)) }
 
 // Every time the trash bin is full, it is eventually not full anymore. (Liveness)
 // G (full_capacity -> F (!full_capacity))
 //for all bin_id
-ltl capacity1 { [](bin_status[bin_id].full_capacity -> <>(!bin_status[bin_id].full_capacity)) }
+ltl capacity1 { [](bin_status[BIN_ID].full_capacity -> <>(!bin_status[BIN_ID].full_capacity)) }
 
 // The user always eventually has no trash. (Liveness)
 // G (has_trash -> F (!has_trash))
 //for all user_id
-ltl user1 { [](<>(!has_trash[user_id])) }
+ltl user1 { [](<>(!has_trash[USER_ID])) }
 
 // Every time the user has trash they can deposit their trash. (Liveness)
-// G (has_trash -> F (can_deposit_trash))
+// G (has_trash -> F (!has_trash))
 //for all user_id
-ltl user2 { [](has_trash[user_id] -> <>(!has_trash[user_id])) }//it does not matter which is the value of bin_id
-// ltl user2 { []((?bin_id && has_trash[user_id]) -> <>can_deposit_trash?user_id, bin_id, true) }//it does not matter which is the value of bin_id
+ltl user2 { [](has_trash[USER_ID] -> <>(!has_trash[USER_ID])) }//it does not matter which is the value of bin_id
 
 // Every time the truck is requested for a trash bin, the truck has eventually emptied the bin (Liveness)
 // G (request_truck -> F (bin_emptied))
@@ -280,7 +279,7 @@ proctype truck() {
 	do
 	:: request_truck?bin_id ->
 		change_truck!arrived, bin_id;
-		change_truck? start_emptying, bin_id;
+		change_truck? start_emptying, eval(bin_id);
 		empty_bin[bin_id]!true;
 		bin_emptied[bin_id]?true;
 		change_truck!emptied, bin_id;
@@ -301,7 +300,7 @@ proctype user(byte user_id; byte trash_size) {
 		// Scan card
 		scan_card_user!user_id;
 		if
-		:: can_deposit_trash?user_id, bin_id, true ->
+		:: can_deposit_trash?eval(user_id), bin_id, true ->
 			bin_changed[bin_id]?LockOuterDoor, true;
 			// Open door
 			change_bin[bin_id]!OuterDoor, open;
@@ -320,7 +319,7 @@ proctype user(byte user_id; byte trash_size) {
 			// Close door
 			change_bin[bin_id]!OuterDoor, closed;
 			bin_changed[bin_id]?OuterDoor, true;
-		:: can_deposit_trash?user_id,bin_id, false ->
+		:: can_deposit_trash?eval(user_id),bin_id, false ->
 			skip;
 		fi
 	od
@@ -336,75 +335,89 @@ proctype main_control() {
     byte bin_id;
     
     do
-    :: bin_id = 0;//first we are gonna empty all the bins
-       do
-       :: bin_id < NO_BINS ->    // Iterate over all bins
-           if
-           :: bin_status[bin_id].full_capacity -> // We need to empty the bin
-               request_truck!bin_id;
-           :: else -> skip;  // Continue if not full
-           fi;
-           bin_id++;          // Move to the next bin
-       :: bin_id == NO_BINS -> break; // When all bins have been processed
-       od;
-    
-    	scan_card_user?user_id; 
-        check_user!user_id;                
-        user_valid?user_id, valid ->        // Wait for server response
-            if
-            :: valid -> 
-                // We look for a bin which is not full
-                bin_id = 0;
-                do
-                :: bin_id < NO_BINS -> 
-                    if
-                    :: !bin_status[bin_id].full_capacity ->  
-                        can_deposit_trash!user_id,bin_id, true;
-                        
-                        // Wait for the outer door to be closed
-                        user_closed_outer_door[bin_id]?true; 
-                        
-                        // Close and lock the outer door
-                        change_bin[bin_id]!LockOuterDoor, closed; 
-                        
-                        // Weigh the trash
-                        weigh_trash[bin_id]!true;  
-                        trash_weighted[bin_id]?trash_weight;
-                        
-                        // Open the trap door (we assume the trap door is closed)
-                        assert(bin_status[bin_id].trap_door == closed);
-                        change_bin[bin_id]!TrapDoor, open;
-                        bin_changed[bin_id]?TrapDoor, true;
-                        
-                        // Compress the trash
-                        change_ram[bin_id]!compress;
-                        ram_changed[bin_id]?true;
-                        change_ram[bin_id]!idle;
-                        ram_changed[bin_id]?true;
-                        
-                        // Close trap door
-                        assert(bin_status[bin_id].trap_door == open);
-                        change_bin[bin_id]!TrapDoor, closed;
-                        bin_changed[bin_id]?TrapDoor, true;
-                        
-                        // Checking if bin is full
-                        if
-                        :: (bin_status[bin_id].trash_uncompressed + bin_status[bin_id].trash_compressed) >= max_capacity[bin_id] -> 
-                            bin_status[bin_id].full_capacity = true;
-                        :: else -> skip;
-                        fi;
-                        
-                        break; // Stop the loop beacause bin has been processed
-                    :: else -> skip;  // If full, try the next bin
-                    fi;
-                    bin_id++; 
-                :: bin_id == NO_BINS -> // All bins have been checked and are full
-					can_deposit_trash!user_id,NO_BINS, false;  // No available bins: there is no bin id
-                    break;  
-                od;
-                
-            :: else -> can_deposit_trash!user_id,NO_BINS, false; // Invalid user there is no bin id
-            fi;
+    :: true->//first we are gonna empty all the bins
+
+		bin_id=0;
+		do
+		:: bin_id < NO_BINS ->    // Iterate over all bins
+			if
+			:: bin_status[bin_id].full_capacity -> // We need to empty the bin
+				request_truck!bin_id;
+				change_truck?arrived, eval(bin_id);
+				change_truck!start_emptying, bin_id;
+				change_truck?emptied, eval(bin_id);
+			:: else -> skip;  // Continue if not full
+			fi;
+			bin_id++;          // Move to the next bin
+		:: bin_id == NO_BINS -> break; // When all bins have been processed
+		od;
+
+		//now for each user we check if he is has scanned his card to deposit trash
+		user_id=0
+		do
+		:: user_id < NO_USERS ->    // Iterate over all users
+			if
+			:: scan_card_user?eval(user_id) -> // User has requested to use the bin
+				check_user!user_id;                
+				user_valid?eval(user_id), valid;       // Wait for server response
+				if
+				:: valid -> 
+					// We look for a bin which is not full
+					bin_id = 0;
+					do
+					:: bin_id < NO_BINS -> 
+						if
+						:: !bin_status[bin_id].full_capacity ->  
+							can_deposit_trash!user_id,bin_id, true;
+							
+							// Wait for the outer door to be closed
+							user_closed_outer_door[bin_id]?true; 
+							
+							// Close and lock the outer door
+							change_bin[bin_id]!LockOuterDoor, closed; 
+							
+							// Weigh the trash
+							weigh_trash[bin_id]!true;  
+							trash_weighted[bin_id]?trash_weight;
+							
+							// Open the trap door (we assume the trap door is closed)
+							assert(bin_status[bin_id].trap_door == closed);
+							change_bin[bin_id]!TrapDoor, open;
+							bin_changed[bin_id]?TrapDoor, true;
+							
+							// Compress the trash
+							change_ram[bin_id]!compress;
+							ram_changed[bin_id]?true;
+							change_ram[bin_id]!idle;
+							ram_changed[bin_id]?true;
+							
+							// Close trap door
+							assert(bin_status[bin_id].trap_door == open);
+							change_bin[bin_id]!TrapDoor, closed;
+							bin_changed[bin_id]?TrapDoor, true;
+							
+							// Checking if bin is full
+							if
+							:: (bin_status[bin_id].trash_uncompressed + bin_status[bin_id].trash_compressed) >= max_capacity[bin_id] -> 
+								bin_status[bin_id].full_capacity = true;
+							:: else -> skip;
+							fi;
+							
+							break; // Stop the inner loop beacause bin has been processed
+						:: else -> skip;  // If full, try the next bin
+						fi;
+						bin_id++; 
+					:: bin_id == NO_BINS -> // All bins have been checked and are full
+						can_deposit_trash!user_id,NO_BINS, false;  // No available bins: there is no bin id
+						break;  
+					od;  
+				:: else -> can_deposit_trash!user_id,NO_BINS, false; // Invalid user there is no bin id
+				fi;
+			:: else -> skip;  // Continue if user has not scanned his card
+			fi;
+			user_id++;          // Next user
+		:: user_id == NO_USERS -> break; // When all users have been processed
+		od; 
             
     od;
 }

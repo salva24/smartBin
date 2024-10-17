@@ -268,7 +268,7 @@ proctype truck() {
 	do
 	:: request_truck?bin_id ->
 		change_truck!arrived, bin_id;
-		change_truck? start_emptying, bin_id;
+		change_truck? start_emptying, eval(bin_id);
 		empty_bin!true;
 		bin_emptied?true;
 		change_truck!emptied, bin_id;
@@ -288,7 +288,7 @@ proctype user(byte user_id; byte trash_size) {
 		// Scan card
 		scan_card_user!user_id;
 		if
-		:: can_deposit_trash?user_id, true ->
+		:: can_deposit_trash?user_id, true ->//:: can_deposit_trash?eval(user_id), true ->
 			bin_changed?LockOuterDoor, true;
 			// Open door
 			change_bin!OuterDoor, open;
@@ -307,7 +307,7 @@ proctype user(byte user_id; byte trash_size) {
 			// Close door
 			change_bin!OuterDoor, closed;
 			bin_changed?OuterDoor, true;
-		:: can_deposit_trash?user_id, false ->
+		:: can_deposit_trash?user_id, false ->//:: can_deposit_trash?eval(user_id), false ->
 			skip;
 		fi
 	od
@@ -324,13 +324,13 @@ proctype main_control() {
 	do
 	:: bin_status.full_capacity->//we need to empty the trash
 		request_truck!bin_id;
-		change_truck?arrived, bin_id;
+		change_truck?arrived, eval(bin_id);
 		change_truck!start_emptying, bin_id;
-		change_truck?emptied, bin_id;
+		change_truck?emptied, eval(bin_id);
 	:: !bin_status.full_capacity->
-		scan_card_user?user_id;
+		scan_card_user?user_id;//wait for the user to scan his card
 		check_user!user_id;                
-		user_valid?user_id, valid ->        //Wait for server answer
+		user_valid?eval(user_id), valid ->        //Wait for server answer
 		if
 		:: valid ->  
 			assert(!bin_status.full_capacity);

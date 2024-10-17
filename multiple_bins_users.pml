@@ -413,7 +413,6 @@ proctype main_control() {
 					od;  
 				:: else -> can_deposit_trash!user_id,NO_BINS, false; // Invalid user there is no bin id
 				fi;
-			:: else -> skip;  // Continue if user has not scanned his card
 			fi;
 			user_id++;          // Next user
 		:: user_id == NO_USERS -> break; // When all users have been processed

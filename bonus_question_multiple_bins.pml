@@ -21,8 +21,8 @@
 
 
 //users_trash_sizes
-#define TRASH_SIZE_USER0 4
-#define TRASH_SIZE_USER1 6
+#define TRASH_SIZE_USER0 6
+#define TRASH_SIZE_USER1 4
 //#define TRASH_SIZE_USER2 4
 //...
 //trash_bin_max_capacity

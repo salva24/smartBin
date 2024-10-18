@@ -18,8 +18,8 @@
 #define NO_BINS 3
 // The number of users.
 #define NO_USERS 2
-#define USER_ID 0
-#define BIN_ID 0
+#define USER_ID 1
+#define BIN_ID 2
 
 
 

@@ -381,25 +381,31 @@ proctype main_control() {
 							weigh_trash[bin_id]!true;  
 							trash_weighted[bin_id]?trash_weight;
 							
-							// Open the trap door (we assume the trap door is closed)
-							assert(bin_status[bin_id].trap_door == closed);
-							change_bin[bin_id]!TrapDoor, open;
-							bin_changed[bin_id]?TrapDoor, true;
-							
-							// Compress the trash
-							change_ram[bin_id]!compress;
-							ram_changed[bin_id]?true;
-							change_ram[bin_id]!idle;
-							ram_changed[bin_id]?true;
-							
-							// Close trap door
-							assert(bin_status[bin_id].trap_door == open);
-							change_bin[bin_id]!TrapDoor, closed;
-							bin_changed[bin_id]?TrapDoor, true;
-							
-							// Checking if bin is full
+							//check the trash does not exced the bin capacity
 							if
-							:: (bin_status[bin_id].trash_uncompressed + bin_status[bin_id].trash_compressed) >= max_capacity[bin_id] -> 
+							::bin_status[bin_id].trash_compressed+trash_weight/2>max_capacity[bin_id]->//not enough space
+								skip;
+							::else->
+								// Open the trap door (we assume the trap door is closed)
+								assert(bin_status[bin_id].trap_door == closed);
+								change_bin[bin_id]!TrapDoor, open;
+								bin_changed[bin_id]?TrapDoor, true;
+								
+								// Compress the trash
+								change_ram[bin_id]!compress;
+								ram_changed[bin_id]?true;
+								change_ram[bin_id]!idle;
+								ram_changed[bin_id]?true;
+								
+								// Close trap door
+								assert(bin_status[bin_id].trap_door == open);
+								change_bin[bin_id]!TrapDoor, closed;
+								bin_changed[bin_id]?TrapDoor, true;
+								
+							fi;
+							// Check if bin is full
+							if
+							:: bin_status[bin_id].trash_uncompressed>0 || bin_status[bin_id].trash_compressed >= max_capacity[bin_id] -> //if there is still trash uncompressed it is because bin is full. If the compressed trash == max capacity is also full
 								bin_status[bin_id].full_capacity = true;
 							:: else -> skip;
 							fi;

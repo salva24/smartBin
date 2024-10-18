@@ -343,25 +343,33 @@ proctype main_control() {
 			//weighting the trash
 			weigh_trash!true;  
 			trash_weighted?trash_weight;
-			//open trap door (we assume the trap door is closed)
-			assert(bin_status.trap_door==closed);
-			change_bin!TrapDoor, open;
-			bin_changed?TrapDoor, true;
-			//compress trash
-			change_ram!compress;
-			ram_changed?true;
-			change_ram!idle
-			ram_changed?true;
-			//close trap door
-			assert(bin_status.trap_door==open);
-			change_bin!TrapDoor, closed;
-			bin_changed?TrapDoor, true;
+
+			//check the trash does not exced the bin capacity
+			if
+			::bin_status.trash_compressed+trash_weight/2>max_capacity->//not enough space
+				skip;
+			::else->
+				//open trap door (we assume the trap door is closed)
+				assert(bin_status.trap_door==closed);
+				change_bin!TrapDoor, open;
+				bin_changed?TrapDoor, true;
+				//compress trash
+				change_ram!compress;
+				ram_changed?true;
+				change_ram!idle
+				ram_changed?true;
+				//close trap door
+				assert(bin_status.trap_door==open);
+				change_bin!TrapDoor, closed;
+				bin_changed?TrapDoor, true;
+			fi;
+
 			//update if capacity if full
 			if
-				:: (bin_status.trash_uncompressed+bin_status.trash_compressed)>=max_capacity->
-					bin_status.full_capacity=true;
-				:: else -> 
-					skip;
+			:: bin_status.trash_uncompressed>0 || bin_status.trash_compressed >= max_capacity -> //if there is still trash uncompressed it is because bin is full. If the compressed trash == max capacity is also full
+				bin_status.full_capacity=true;
+			:: else -> 
+				skip;
 			fi	
 						
 		:: else -> can_deposit_trash!user_id, false;               
